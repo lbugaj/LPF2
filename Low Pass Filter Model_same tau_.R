@@ -10,7 +10,7 @@ setwd("/Users/Lukasz/Documents/Lim Lab/Manuscripts/Cancer profiling/Model")
 
 #function to make models and their integrals of first order RC circuits
 #enter in values for period, pulse lenghts, resistor, and capacitor
-#outputs a list of the RC model for each condition, , its value aobve a threshold, its digital threshold response, and integral of both
+#outputs a list of the RC model for each condition, , its value above a threshold, its digital threshold response, and integral of both
 firstOrderRC <-function(inputPeriodVals, inputPulseVals, resistor, capacitor, threshold){
   times <- seq(0, 500, by = 1)
   signal <- as.data.frame(list(times = times, voltage = rep(0, length(times))))
@@ -55,13 +55,13 @@ firstOrderRC <-function(inputPeriodVals, inputPulseVals, resistor, capacitor, th
       out <- ode(y, times, dynamicModel, params)
      # out = results[,c(1:2)]
       colnames(out) = c("time", "Q")
-    }
     
-    out
+    
+ 
     
       #set threshold to interpret ppErk above
       thresh = threshold
-      thresh = .65
+   
       
 
       #make a dataframe to hold times, input signal, model, and integral
@@ -69,6 +69,8 @@ firstOrderRC <-function(inputPeriodVals, inputPulseVals, resistor, capacitor, th
       traceFrame <-  data.frame(time = times,
                                inputs = signal$voltage,
                                models = out[,"Q"], 
+                               anAbThresh = ifelse(out[,"Q"] > thresh, out[,"Q"], 0),
+                               anAbThreshIntegral = cumsum(ifelse(out[,"Q"] > thresh, out[,"Q"], 0)),
                                digAbThresh = ifelse(out[,"Q"] > thresh, 1, 0),
                                digAbThreshIntegral = cumsum(ifelse(out[,"Q"] > thresh, 1, 0))
                                )
@@ -76,39 +78,40 @@ firstOrderRC <-function(inputPeriodVals, inputPulseVals, resistor, capacitor, th
       #traceList[[paste("int", inputPeriod, "pulse", inputPulse, "R1", R1, "C1", C1, "R0", R0, "C0", C0, sep = "")]] = traceFrame
       traceList[[paste("int", inputPeriod, "pulse", inputPulse, "Resistor", resistor, "Capacitor", capacitor, sep = "")]] = traceFrame
     }
+  }
   return(traceList)
 }
 
-firstOrderRC(inputPeriodVals = 60,
-                           inputPulseVals = 10,
+pulseList = firstOrderRC(inputPeriodVals = 60,
+                           inputPulseVals = c(10,20),
                            resistor = 2,
                            capacitor = 2,
                            threshold = 0.65)
 
 
-rRise = c(1)
-rFall = c(2,20)
-help 
-#automate a scan of R_rise and R_fall. make 3x3 matrix
-totModel = list()
-for (i in 1:length(rRise)){
-  for (j in 1:length(rFall)){
-    model = firstOrderRC_d_Rise_d_fall(inputPeriodVals = 60,
-                                       inputPulseVals = c(10),
-                                       resistor0 = rFall[j],
-                                       capacitor0 = 2,
-                                       resistor1 = rRise[i],
-                                       capacitor1 = 2,
-                                       threshold = 0.65)
-    #model[[paste("int 60 pulse 10 R1_", rRise[i], " R0_", rFall[j] sep = "")]] = model
-    totModel[[paste("R1_", rRise[i], " R0_", rFall[j], sep = "")]] = model
-    
-  }
-}
-totModel = c(totModel)
 
-###Next to automate: do this over 3 different pulse timings
-# but first graph that shit
+
+#automate a scanning R, C values, and pulse widths. make 3x3 matrix
+totModel = list()
+periodVals = 60
+pulseVals = c(10, 30, 60)
+rVals = c(0.2, 2, 20)
+cVal = 1
+
+for (i in 1:length(rVals)){
+    model = firstOrderRC(inputPeriodVals = periodVals,
+                                       inputPulseVals = pulseVals,
+                                       resistor = rVals[i],
+                                       capacitor = cVal,
+                                       threshold = 0.65)
+    
+    #model[[paste("int 60 pulse 10 R1_", rRise[i], " R0_", rFall[j] sep = "")]] = model
+    namedModel = list()
+    namedModel[[paste("R_", rVals[i], "_C_", cVal, sep = "")]] = model
+    totModel = c(totModel, model)
+}
+
+# now  graph that shit
 
 plotModels = function(list1){
   par(mfrow=c(2,1))
