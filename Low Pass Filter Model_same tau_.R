@@ -88,7 +88,7 @@ firstOrderRC(inputPeriodVals = 60,
 
 rRise = c(1)
 rFall = c(2,20)
-
+help 
 #automate a scan of R_rise and R_fall. make 3x3 matrix
 totModel = list()
 for (i in 1:length(rRise)){
