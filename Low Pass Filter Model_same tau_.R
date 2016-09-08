@@ -4,7 +4,17 @@
 library(gridExtra)
 install.packages("flux")
 library(flux)
+install.packages("deSolve")
 library(deSolve)
+install.packages("ggplot2")
+library(ggplot2)
+library(reshape2)
+install.packages("RColorBrewer")
+library(RColorBrewer)
+library(mgcv)
+install.packages("akima")
+library(akima)
+
 
 setwd("/Users/Lukasz/Documents/Lim Lab/Manuscripts/Cancer profiling/Model")
 
@@ -35,14 +45,14 @@ firstOrderRC <-function(inputPeriodVals, inputPulseVals, resistor, capacitor, th
       
       ##make matrix holder for the model output
       out = matrix(0,length(times),2)
-  
+      
       #params = c(R = 2, C = 2)
       
       #placeholder for parameters
       params = c(R = resistor, C = capacitor)
       
       #set "initial condition"
-        y = c(Q = 0)
+      y = c(Q = 0)
       
       dynamicModel <- function(time, y, params){
         with(as.list(c(y,params)),{
@@ -53,27 +63,27 @@ firstOrderRC <-function(inputPeriodVals, inputPulseVals, resistor, capacitor, th
       }
       
       out <- ode(y, times, dynamicModel, params)
-     # out = results[,c(1:2)]
+      # out = results[,c(1:2)]
       colnames(out) = c("time", "Q")
-    
-    
- 
-    
+      
+      
+      
+      
       #set threshold to interpret ppErk above
       thresh = threshold
-   
       
-
+      
+      
       #make a dataframe to hold times, input signal, model, and integral
-
+      
       traceFrame <-  data.frame(time = times,
-                               inputs = signal$voltage,
-                               models = out[,"Q"], 
-                               anAbThresh = ifelse(out[,"Q"] > thresh, out[,"Q"], 0),
-                               anAbThreshIntegral = cumsum(ifelse(out[,"Q"] > thresh, out[,"Q"], 0)),
-                               digAbThresh = ifelse(out[,"Q"] > thresh, 1, 0),
-                               digAbThreshIntegral = cumsum(ifelse(out[,"Q"] > thresh, 1, 0))
-                               )
+                                inputs = signal$voltage,
+                                models = out[,"Q"], 
+                                anAbThresh = ifelse(out[,"Q"] > thresh, out[,"Q"], 0),
+                                anAbThreshIntegral = cumsum(ifelse(out[,"Q"] > thresh, out[,"Q"], 0)),
+                                digAbThresh = ifelse(out[,"Q"] > thresh, 1, 0),
+                                digAbThreshIntegral = cumsum(ifelse(out[,"Q"] > thresh, 1, 0))
+      )
       
       #traceList[[paste("int", inputPeriod, "pulse", inputPulse, "R1", R1, "C1", C1, "R0", R0, "C0", C0, sep = "")]] = traceFrame
       traceList[[paste("int", inputPeriod, "pulse", inputPulse, "Resistor", resistor, "Capacitor", capacitor, sep = "")]] = traceFrame
@@ -83,10 +93,10 @@ firstOrderRC <-function(inputPeriodVals, inputPulseVals, resistor, capacitor, th
 }
 
 pulseList = firstOrderRC(inputPeriodVals = 60,
-                           inputPulseVals = c(10,20),
-                           resistor = 2,
-                           capacitor = 2,
-                           threshold = 0.4)
+                         inputPulseVals = c(10,20),
+                         resistor = 2,
+                         capacitor = 2,
+                         threshold = 0.4)
 
 
 
@@ -100,17 +110,17 @@ cVal = 1
 thresh = 0.4
 
 for (i in 1:length(rVals)){
-    
+  
   model = firstOrderRC(inputPeriodVals = periodVals,
-                                       inputPulseVals = pulseVals,
-                                       resistor = rVals[i],
-                                       capacitor = cVal,
-                                       threshold = thresh)
-    
-    #model[[paste("int 60 pulse 10 R1_", rRise[i], " R0_", rFall[j] sep = "")]] = model
-    namedModel = list()
-    namedModel[[paste("R_", rVals[i], "_C_", cVal, sep = "")]] = model
-    totModel = c(totModel, model)
+                       inputPulseVals = pulseVals,
+                       resistor = rVals[i],
+                       capacitor = cVal,
+                       threshold = thresh)
+  
+  #model[[paste("int 60 pulse 10 R1_", rRise[i], " R0_", rFall[j] sep = "")]] = model
+  namedModel = list()
+  namedModel[[paste("R_", rVals[i], "_C_", cVal, sep = "")]] = model
+  totModel = c(totModel, model)
 }
 
 # now  graph that shit
@@ -158,10 +168,10 @@ firstOrderRC_ON_OFF <-function(ONpulseVal, OFFpulseVal, resistor, capacitor, thr
   signal <- as.data.frame(list(times = times, voltage = rep(0, length(times))))
   
   traceList = list() # create list to store all traces
-
+  
   for (i in 1:length(ONpulseVal)){ # for each ON pulse
     ONpulse = ONpulseVal[i]
-    for (j in 1:length(inputPulseVals)){ # for each OFF pulse
+    for (j in 1:length(OFFpulseVal)){ # for each OFF pulse
       OFFpulse = OFFpulseVal[j]
       
       #define input signal
@@ -236,34 +246,139 @@ thresh = 0.4
 for (i in 1:length(rVals)){
   
   model = firstOrderRC_ON_OFF(ONpulseVal = ONpulses,
-                            OFFpulseVal = OFFpulses,
-                            resistor = rVals[i],
-                            capacitor = cVal,
-                            threshold = thresh)
- 
-  totModel = c(totModel, model)
-}
-digitalIntegrated = matrix(nrow = length(ONpulses), ncol = length(rVals))
-analogIntegrated = matrix(nrow = length(ONpulses), ncol = length(rVals))
+                              OFFpulseVal = OFFpulses,
+                              resistor = rVals[i],
+                              capacitor = cVal,
+                              threshold = thresh)
+  
+  
+    digitalIntegrated = matrix(nrow = length(ONpulses), ncol = length(rVals))
+    analogIntegrated = matrix(nrow = length(ONpulses), ncol = length(rVals))
+    
+    #extract the digital integrated signal above a threshold
+    for(i in 1:length(rVals)){
+      for (j in 1:length(ONpulses)){
+        digitalIntegrated[j,i] = totModel[[(i-1)*length(ONpulses)+j]]$digAbThreshIntegral[501]
+      }
+    }
+    
+    #extract the analog integrated signal
+    for(i in 1:length(rVals)){
+      for (j in 1:length(ONpulses)){
+        analogIntegrated[j,i] = totModel[[(i-1)*length(ONpulses)+j]]$modelIntegral[501]
+      }
+    }
 
-#extract the digital integrated signal above a threshold
-for(i in 1:length(rVals)){
-  for (j in 1:length(ONpulses)){
-    digitalIntegrated[j,i] = totModel[[(i-1)*length(ONpulseVals)+j]]$digAbThreshIntegral[501]
-  }
-}
-
-#extract the analog integrated signal
-for(i in 1:length(rVals)){
-  for (j in 1:length(ONpulses)){
-    analogIntegrated[j,i] = totModel[[(i-1)*length(ONpulseVals)+j]]$modelIntegral[501]
-  }
-}
 
 ###NEXT, expand to make 10x10 matrix for several values of R. 
+##First do for just 1 value of R
+ONpulses = c(5,10,20,30,40,50,60,90,120)
+OFFpulses = c(5,10,20,30,40,50,60,90,120)
+rVals = c(2,4,8,16,32, 64)
+cVal = 1
+thresh = 0.1
 
-pdf("3_3 params model_CORRECT_60OFF_10ON.pdf",width=8,height=8)
-plotModels(totModel)
-dev.off()
+#simulate different ON pusles, OF Fpulses, for different R
+on_off_Digital = list()
+on_off_Analog = list()
+
+#simulate
+totModel = list()
+for (z in 1:length(rVals)){
+  
+  model = firstOrderRC_ON_OFF(ONpulseVal = ONpulses,
+                              OFFpulseVal = OFFpulses,
+                              resistor = rVals[z],
+                              capacitor = cVal,
+                              threshold = thresh)
+  
+  digitalIntegrated = matrix(nrow = length(ONpulses), ncol = length(OFFpulses))
+  analogIntegrated = matrix(nrow = length(ONpulses), ncol = length(OFFpulses))
+  
+  
+  #extract the digital integrated signal above a threshold
+  for(i in 1:length(ONpulses)){
+    for (j in 1:length(OFFpulses)){
+      digitalIntegrated[j,i] = model[[(i-1)*length(ONpulses)+j]]$digAbThreshIntegral[501]
+    }
+  }
+  on_off_Digital[[paste("R_",rVals[z],sep="")]] = digitalIntegrated
+  
+  #extract the analog integrated signal
+  for(i in 1:length(ONpulses)){
+    for (j in 1:length(OFFpulses)){
+      analogIntegrated[j,i] = model[[(i-1)*length(ONpulses)+j]]$modelIntegral[501]
+    }
+  }
+  on_off_Analog[[paste("R_",rVals[z],sep="")]] = analogIntegrated
+}
+
+## Make list of interpolated arrays 
+onOffDigInterp = list()
+for (i in 1:length(on_off_Digital)){
+  mat = on_off_Digital[[i]]
+  colnames(mat) = ONpulses #label columns with ON times
+  tempdf = data.frame(mat, check.names = FALSE)
+  tempdf["OFFtimes"] = OFFpulses #put OFF times for melting purposes
+  
+  #melt this to interpolate
+  meltdf = melt(tempdf, id = "OFFtimes")
+  colnames(meltdf) = c("OFFtimes", "ONtimes", "value")
+  meltdf$ONtimes = as.numeric(as.character(meltdf$ONtimes)) # need to make ONtimes be numeric, not factors
+  
+  akInterp = interp(meltdf[,"ONtimes"],
+                        meltdf[,"OFFtimes"],
+                        meltdf[,"value"], 
+                        xo = seq(min(meltdf[,"ONtimes"]), 
+                                 max(meltdf[,"ONtimes"]), length = 115), 
+                        yo = seq(min(meltdf[,"OFFtimes"]), max(meltdf[,"OFFtimes"]), length = 115))
+  
+  interpDf = data.frame(akInterp[[3]]) # extract the interpolated matrix
+  colnames(interpDf) = seq (1,115,by =1)
+  rownames(interpDf) = seq (1,115,by =1)
+  interpDf["OnTime"] = seq(1,115,1) #label ON times for melthing purposes
+  
+  #melt for ggplot purposes
+  meltInterp = melt(interpDf, id = "OnTime")
+  colnames(meltInterp) = c("OnTime", "OffTime", "value")
+  meltInterp["Rval"] = names(on_off_Digital[i])
+  
+  onOffDigInterp[[names(on_off_Digital)[i]]] = meltInterp
+}
+
+
+#combine all maps so that can ggplot them together
+totInterpMaps = data.frame() 
+for (i in 1:length(onOffDigInterp)){
+  totInterpMaps = rbind(totInterpMaps, onOffDigInterp[[i]])
+}
+
+totInterpMaps$Rval = factor(totInterpMaps$Rval, levels = c("R_2", "R_4", "R_8","R_16","R_32", "R_64"))
+
+#plotting function
+plotInterp = function(df){
+  ggplot(data = df, aes(x = OnTime, y = OffTime))+
+  geom_raster(aes(fill = value), interpolate = TRUE)+
+  facet_wrap(~Rval)+ 
+  scale_y_discrete(breaks = c(0,20,40,60,80,100,120))+
+  scale_x_continuous(breaks = c(20,40,60,80,100,120))+
+  scale_fill_distiller(type = "div", palette = "PuOr")+
+  theme_bw()+ 
+  labs(title = paste("Threshold is", thresh, sep = " " ))+
+  theme(
+    axis.text.x= element_text(angle = 0, face = "bold", size = 15),
+    axis.text.y= element_text(angle = 0, face = "bold", size = 15),
+    axis.title.x= element_text(angle = 0, face = "bold", size = 20),
+    axis.title.y= element_text(angle = 90, face = "bold", size = 20),
+    #  axis.line= element_line(size = 10),
+    axis.line = element_line(size = 1.5),
+    panel.border = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank())
+}
+
+#plot!
+plotInterp(subset(totInterpMaps))
+ggsave("LPF model digital_Thresh 0_1.pdf", height = 5, width = 8)
 
 
