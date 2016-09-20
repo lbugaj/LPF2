@@ -166,7 +166,7 @@ firstOrderRC_ON_OFF <-function(ONpulseVal, OFFpulseVal, resistor, capacitor, thr
 totModel = list()
 periodVals = 40
 pulseVals = c(0,20,40)
-rVals = c(2, 32)
+rVals = c(2, 64)
 cVal = 1
 thresh = 0.3
 
@@ -196,7 +196,7 @@ plotModels = function(list, columns, rows){
 }
 plotModels(totModel, columns = length(rVals), rows = length(pulseVals))
 
-pdf("2Rvals0_20_40_onModels.pdf",width=10,height=5)
+pdf("R2R64_0_20_40_onModels.pdf",width=10,height=5)
 plotModels(totModel, columns = length(rVals), rows = length(pulseVals))
 dev.off()
 
@@ -210,7 +210,7 @@ plotDigModels = function(list, columns, rows){
 }
 plotDigModels(totModel, columns = length(rVals), rows = length(pulseVals))
 
-pdf("2Rvals0_20_40_onDigModels.pdf",width=10,height=5)
+pdf("R2R64vals0_20_40_onDigModels.pdf",width=10,height=5)
 plotDigModels(totModel, columns = length(rVals), rows = length(pulseVals))
 dev.off()
 
@@ -242,7 +242,7 @@ plotDigIntegrals = function(list, columns, rows){
 }
 plotDigIntegrals(totModel, columns = length(pulseVals), rows = length(rVals))
 
-pdf("2Rvals0_20_40_onDigModelsIntegral.pdf",width=10,height=5)
+pdf("R2R64vals0_20_40_onDigModelsIntegral.pdf",width=10,height=5)
 plotDigIntegrals(totModel, columns = length(pulseVals), rows = length(rVals))
 dev.off()
 
